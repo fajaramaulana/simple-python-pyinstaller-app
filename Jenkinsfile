@@ -1,6 +1,6 @@
 node {
     env.CI = 'true'
-    
+
     try {
         checkout scm
         // Build Stage
@@ -18,14 +18,18 @@ node {
             junit 'test-reports/results.xml'  // Always publish test results
         }
 
+        stage('Manual Approval') {
+            input message: 'Apakah Anda ingin melanjutkan ke tahap deploy?'
+        }
+
         // Deliver Stage
-        stage('Deliver') {
+        stage('Deploy') {
             docker.image('cdrx/pyinstaller-linux:python2').inside {
-                sh 'pyinstaller --onefile sources/add2vals.py'
+                sh 'pyinstaller --onefile sources/add2vals.py 10 20'
+                sleep 60
             }
             archiveArtifacts 'dist/add2vals'  // Archive the artifact after successful build
         }
-
     } catch (Exception e) {
         currentBuild.result = 'FAILURE'
         throw e
