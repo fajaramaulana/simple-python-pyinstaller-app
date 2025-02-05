@@ -42,7 +42,7 @@ node {
         stage('Deploy') {
             docker.image('python:3.9-slim').inside('--user root') {
                 sh '''
-            python sources/add2vals.py 10 20
+            python sources/add2vals.py 55 10
             sleep 60
             '''
             }
