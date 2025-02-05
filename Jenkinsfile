@@ -2,33 +2,50 @@ node {
     env.CI = 'true'
 
     try {
-        checkout scm
-        // Build Stage
-        stage('Build') {
-            docker.image('python:2-alpine').inside {
-                sh 'python -m py_compile sources/add2vals.py sources/calc.py'
+        stage('Clone Repository') {
+            checkout scm
+        }
+
+        stage('Prepare Environment') {
+            docker.image('python:3.9-slim').inside {
+                sh 'pwd'
+                sh 'ls -l'
             }
         }
 
-        // Test Stage
-        stage('Test') {
-            docker.image('qnib/pytest').inside {
-                sh 'py.test --verbose --junit-xml test-reports/results.xml sources/test_calc.py'
+        stage('Build') {
+            /* groovylint-disable-next-line DuplicateStringLiteral */
+            docker.image('python:3.9-slim').inside('--user root') {
+                sh '''
+            python -m venv venv
+            . venv/bin/activate
+            pip install --upgrade pip
+            pip install pytest
+            python -m py_compile sources/add2vals.py sources/calc.py
+            '''
             }
-            junit 'test-reports/results.xml'  // Always publish test results
+        }
+
+        stage('Test') {
+            docker.image('python:3.9-slim').inside('--user root') {
+                sh '''
+            . venv/bin/activate
+            pytest --verbose sources/test_calc.py
+            '''
+            }
         }
 
         stage('Manual Approval') {
-            input message: 'Apakah Anda ingin melanjutkan ke tahap deploy?'
+            input message: 'Lanjutkan ke tahap Deploy?'
         }
 
-        // Deliver Stage
         stage('Deploy') {
-            docker.image('cdrx/pyinstaller-linux:python2').inside {
-                sh 'pyinstaller --onefile sources/add2vals.py 10 20'
-                sleep 60
+            docker.image('python:3.9-slim').inside('--user root') {
+                sh '''
+            python sources/add2vals.py 10 20
+            sleep 60
+            '''
             }
-            archiveArtifacts 'dist/add2vals'  // Archive the artifact after successful build
         }
     } catch (Exception e) {
         currentBuild.result = 'FAILURE'
